@@ -41,6 +41,8 @@ interface GalleryImage {
   image_url: string;
   alt_text: string;
   display_order: number;
+  rotation: number;
+  type: 'image' | 'video';
 }
 
 const AI_WELCOME_MESSAGE = 'Oi! 👋 Sou o Assistente Moreré. Posso te ajudar a escolher o passeio ideal, entender duração/preço e até preparar sua reserva.';
@@ -56,12 +58,19 @@ export default function PublicSite() {
   const [updates, setUpdates] = useState<Update[]>([]);
   const [tours, setTours] = useState<Tour[]>([]);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
+  const [settings, setSettings] = useState<Record<string, string>>({
+    hero_image: 'https://images.unsplash.com/photo-1590523277543-a94d2e4eb00b?auto=format&fit=crop&q=100&w=2000',
+    about_image_1: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=100&w=1200',
+    about_image_2: 'https://images.unsplash.com/photo-1519046904884-53103b34b206?auto=format&fit=crop&q=100&w=1200',
+  });
+  const [selectedMedia, setSelectedMedia] = useState<{ url: string, type: 'image' | 'video', rotation?: number } | null>(null);
 
   useEffect(() => {
     fetchUpdates();
     fetchApprovedComments();
     fetchTours();
     fetchGallery();
+    fetchSettings();
     
     // Track page view
     fetch('/api/track', {
@@ -70,6 +79,18 @@ export default function PublicSite() {
       body: JSON.stringify({ path: window.location.pathname })
     }).catch(err => console.error('Failed to track page view:', err));
   }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      const data = await res.json();
+      if (Object.keys(data).length > 0) {
+        setSettings(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch settings:', error);
+    }
+  };
 
   const fetchTours = async () => {
     try {
@@ -353,7 +374,7 @@ ${observacoes ? `\n*Observações:* ${observacoes}` : ''}
       <section id="home" className="relative h-screen flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img 
-            src="https://images.unsplash.com/photo-1506929562872-bb421503ef21?auto=format&fit=crop&q=80&w=1920" 
+            src={settings.hero_image} 
             alt="Praia de Moreré" 
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
@@ -409,7 +430,7 @@ ${observacoes ? `\n*Observações:* ${observacoes}` : ''}
           >
             <div className="aspect-[3/4] rounded-t-full overflow-hidden relative z-10">
               <img 
-                src="https://images.unsplash.com/photo-1596888605861-1c5862e36411?auto=format&fit=crop&q=80&w=800" 
+                src={settings.about_image_1} 
                 alt="Barco em Moreré" 
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
@@ -417,7 +438,7 @@ ${observacoes ? `\n*Observações:* ${observacoes}` : ''}
             </div>
             <div className="absolute -bottom-8 -right-8 w-2/3 aspect-square rounded-full overflow-hidden border-8 border-sand-50 z-20">
               <img 
-                src="https://images.unsplash.com/photo-1506477331477-33d5d8b3dc85?auto=format&fit=crop&q=80&w=600" 
+                src={settings.about_image_2} 
                 alt="Coqueiros" 
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
@@ -536,7 +557,10 @@ ${observacoes ? `\n*Observações:* ${observacoes}` : ''}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                   className="min-w-[85vw] md:min-w-[350px] lg:min-w-[400px] snap-center group rounded-2xl overflow-hidden bg-sand-50 border border-sand-100 hover:shadow-xl transition-all duration-300 flex flex-col"
                 >
-                  <div className="relative aspect-[4/3] overflow-hidden">
+                  <div 
+                    className="relative aspect-[4/3] overflow-hidden cursor-pointer"
+                    onClick={() => setSelectedMedia({ url: tour.image, type: 'image' })}
+                  >
                     <img 
                       src={tour.image} 
                       alt={tour.title} 
@@ -603,13 +627,28 @@ ${observacoes ? `\n*Observações:* ${observacoes}` : ''}
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {gallery.map((image, index) => (
-              <img 
-                key={image.id}
-                src={image.image_url} 
-                alt={image.alt_text} 
-                className={`w-full h-64 md:h-80 object-cover rounded-xl ${index % 2 !== 0 ? 'md:translate-y-8' : ''}`} 
-                referrerPolicy="no-referrer" 
-              />
+              <div 
+                key={image.id} 
+                className={`w-full h-64 md:h-80 rounded-xl overflow-hidden cursor-pointer group ${index % 2 !== 0 ? 'md:translate-y-8' : ''}`}
+                onClick={() => setSelectedMedia({ url: image.image_url, type: image.type || 'image', rotation: image.rotation })}
+              >
+                {image.type === 'video' ? (
+                  <video 
+                    src={image.image_url} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                    style={{ transform: `rotate(${image.rotation || 0}deg)` }}
+                    muted loop playsInline autoPlay
+                  />
+                ) : (
+                  <img 
+                    src={image.image_url} 
+                    alt={image.alt_text} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                    style={{ transform: `rotate(${image.rotation || 0}deg)` }}
+                    referrerPolicy="no-referrer" 
+                  />
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -1054,6 +1093,39 @@ ${observacoes ? `\n*Observações:* ${observacoes}` : ''}
               </form>
             </div>
           </motion.div>
+        </div>
+      )}
+
+      {/* Lightbox Modal */}
+      {selectedMedia && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4 md:p-8" onClick={() => setSelectedMedia(null)}>
+          <button 
+            onClick={() => setSelectedMedia(null)}
+            className="absolute top-6 right-6 text-white hover:text-sand-300 transition-colors z-[70] bg-black/50 rounded-full p-2"
+          >
+            <X className="w-8 h-8" />
+          </button>
+          <div 
+            className="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {selectedMedia.type === 'video' ? (
+              <video 
+                src={selectedMedia.url} 
+                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" 
+                style={{ transform: `rotate(${selectedMedia.rotation || 0}deg)` }}
+                controls autoPlay
+              />
+            ) : (
+              <img 
+                src={selectedMedia.url} 
+                alt="Mídia ampliada" 
+                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" 
+                style={{ transform: `rotate(${selectedMedia.rotation || 0}deg)` }}
+                referrerPolicy="no-referrer" 
+              />
+            )}
+          </div>
         </div>
       )}
     </div>

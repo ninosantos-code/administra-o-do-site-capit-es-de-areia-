@@ -47,9 +47,44 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     image_url TEXT NOT NULL,
     alt_text TEXT NOT NULL,
-    display_order INTEGER NOT NULL
+    display_order INTEGER NOT NULL,
+    rotation INTEGER DEFAULT 0,
+    type TEXT DEFAULT 'image'
+  );
+
+  CREATE TABLE IF NOT EXISTS site_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
   );
 `);
+
+try {
+  db.exec('ALTER TABLE gallery ADD COLUMN rotation INTEGER DEFAULT 0');
+} catch (e) {
+  // Column might already exist
+}
+try {
+  db.exec("ALTER TABLE gallery ADD COLUMN type TEXT DEFAULT 'image'");
+} catch (e) {
+  // Column might already exist
+}
+
+// Ensure site_settings table exists (in case it wasn't created in the initial block)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS site_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+`);
+
+// Seed initial site settings
+const settingsCount = db.prepare('SELECT COUNT(*) as count FROM site_settings').get() as { count: number };
+if (settingsCount.count === 0) {
+  const insertSetting = db.prepare('INSERT INTO site_settings (key, value) VALUES (?, ?)');
+  insertSetting.run('hero_image', 'https://images.unsplash.com/photo-1590523277543-a94d2e4eb00b?auto=format&fit=crop&q=100&w=2000');
+  insertSetting.run('about_image_1', 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=100&w=1200');
+  insertSetting.run('about_image_2', 'https://images.unsplash.com/photo-1519046904884-53103b34b206?auto=format&fit=crop&q=100&w=1200');
+}
 
 // Seed initial data if empty
 const toursCount = db.prepare('SELECT COUNT(*) as count FROM tours').get() as { count: number };
@@ -144,14 +179,46 @@ async function startServer() {
   // Update a gallery image
   app.put('/api/gallery/:id', (req, res) => {
     const { id } = req.params;
-    const { image_url, alt_text } = req.body;
+    const { image_url, alt_text, rotation, type } = req.body;
     
     if (!image_url || !alt_text) {
       return res.status(400).json({ error: 'Image URL and alt text are required' });
     }
 
-    const stmt = db.prepare('UPDATE gallery SET image_url = ?, alt_text = ? WHERE id = ?');
-    const info = stmt.run(image_url, alt_text, id);
+    const stmt = db.prepare('UPDATE gallery SET image_url = ?, alt_text = ?, rotation = ?, type = ? WHERE id = ?');
+    const info = stmt.run(image_url, alt_text, rotation || 0, type || 'image', id);
+    
+    if (info.changes === 0) {
+      return res.status(404).json({ error: 'Gallery image not found' });
+    }
+    
+    res.json({ success: true });
+  });
+
+  // Add a new gallery image
+  app.post('/api/gallery', (req, res) => {
+    const { image_url, alt_text, type } = req.body;
+    
+    if (!image_url || !alt_text) {
+      return res.status(400).json({ error: 'Image URL and alt text are required' });
+    }
+
+    const maxOrderStmt = db.prepare('SELECT MAX(display_order) as maxOrder FROM gallery');
+    const maxOrderResult = maxOrderStmt.get() as { maxOrder: number | null };
+    const nextOrder = (maxOrderResult.maxOrder || 0) + 1;
+
+    const stmt = db.prepare('INSERT INTO gallery (image_url, alt_text, display_order, rotation, type) VALUES (?, ?, ?, 0, ?)');
+    const info = stmt.run(image_url, alt_text, nextOrder, type || 'image');
+    
+    res.status(201).json({ id: info.lastInsertRowid, image_url, alt_text, display_order: nextOrder, rotation: 0, type: type || 'image' });
+  });
+
+  // Delete a gallery image
+  app.delete('/api/gallery/:id', (req, res) => {
+    const { id } = req.params;
+    
+    const stmt = db.prepare('DELETE FROM gallery WHERE id = ?');
+    const info = stmt.run(id);
     
     if (info.changes === 0) {
       return res.status(404).json({ error: 'Gallery image not found' });
@@ -216,6 +283,42 @@ async function startServer() {
     const stmt = db.prepare('INSERT INTO updates (title, content) VALUES (?, ?)');
     const info = stmt.run(title, content);
     res.status(201).json({ id: info.lastInsertRowid, title, content });
+  });
+
+  // Get site settings
+  app.get('/api/settings', (req, res) => {
+    const stmt = db.prepare('SELECT * FROM site_settings');
+    const settings = stmt.all() as { key: string, value: string }[];
+    const settingsObj = settings.reduce((acc, curr) => {
+      acc[curr.key] = curr.value;
+      return acc;
+    }, {} as Record<string, string>);
+    res.json(settingsObj);
+  });
+
+  // Update site settings
+  app.put('/api/settings', (req, res) => {
+    const settings = req.body;
+    
+    if (!settings || typeof settings !== 'object') {
+      return res.status(400).json({ error: 'Invalid settings object' });
+    }
+
+    const stmt = db.prepare('UPDATE site_settings SET value = ? WHERE key = ?');
+    
+    const updateMany = db.transaction((settingsObj: Record<string, string>) => {
+      for (const [key, value] of Object.entries(settingsObj)) {
+        stmt.run(value, key);
+      }
+    });
+
+    try {
+      updateMany(settings);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Failed to update settings:', error);
+      res.status(500).json({ error: 'Failed to update settings' });
+    }
   });
 
   // Vite middleware for development

@@ -37,6 +37,8 @@ interface GalleryImage {
   image_url: string;
   alt_text: string;
   display_order: number;
+  rotation: number;
+  type: 'image' | 'video';
 }
 
 export default function AdminDashboard() {
@@ -44,11 +46,16 @@ export default function AdminDashboard() {
   const [updates, setUpdates] = useState<Update[]>([]);
   const [tours, setTours] = useState<Tour[]>([]);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
+  const [settings, setSettings] = useState<Record<string, string>>({});
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [newUpdateTitle, setNewUpdateTitle] = useState('');
   const [newUpdateContent, setNewUpdateContent] = useState('');
   const [isSubmittingUpdate, setIsSubmittingUpdate] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'comments' | 'updates' | 'tours' | 'gallery'>('dashboard');
+  const [newGalleryImageUrl, setNewGalleryImageUrl] = useState('');
+  const [newGalleryAltText, setNewGalleryAltText] = useState('');
+  const [newGalleryType, setNewGalleryType] = useState<'image' | 'video'>('image');
+  const [isSubmittingGallery, setIsSubmittingGallery] = useState(false);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'comments' | 'updates' | 'tours' | 'gallery' | 'settings'>('dashboard');
 
   useEffect(() => {
     fetchComments();
@@ -56,7 +63,18 @@ export default function AdminDashboard() {
     fetchAnalytics();
     fetchTours();
     fetchGallery();
+    fetchSettings();
   }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      const data = await res.json();
+      setSettings(data);
+    } catch (error) {
+      console.error('Failed to fetch settings:', error);
+    }
+  };
 
   const fetchTours = async () => {
     try {
@@ -109,6 +127,67 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Failed to update gallery image:', error);
       alert('Erro ao atualizar imagem.');
+    }
+  };
+
+  const handleAddGalleryImage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGalleryImageUrl.trim() || !newGalleryAltText.trim()) return;
+
+    setIsSubmittingGallery(true);
+    try {
+      const res = await fetch('/api/gallery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_url: newGalleryImageUrl, alt_text: newGalleryAltText, type: newGalleryType }),
+      });
+
+      if (res.ok) {
+        setNewGalleryImageUrl('');
+        setNewGalleryAltText('');
+        setNewGalleryType('image');
+        fetchGallery();
+        alert('Mídia adicionada com sucesso!');
+      }
+    } catch (error) {
+      console.error('Failed to add gallery image:', error);
+      alert('Erro ao adicionar mídia.');
+    } finally {
+      setIsSubmittingGallery(false);
+    }
+  };
+
+  const handleDeleteGalleryImage = async (id: number) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta mídia?')) return;
+    
+    try {
+      const res = await fetch(`/api/gallery/${id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        fetchGallery();
+        alert('Mídia excluída com sucesso!');
+      }
+    } catch (error) {
+      console.error('Failed to delete gallery image:', error);
+      alert('Erro ao excluir mídia.');
+    }
+  };
+
+  const handleUpdateSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+      if (res.ok) {
+        alert('Configurações salvas com sucesso!');
+      }
+    } catch (error) {
+      console.error('Failed to update settings:', error);
+      alert('Erro ao salvar configurações.');
     }
   };
 
@@ -228,6 +307,12 @@ export default function AdminDashboard() {
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'gallery' ? 'bg-white text-sand-900 shadow-sm' : 'text-sand-600 hover:text-sand-900'}`}
           >
             Galeria
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'settings' ? 'bg-white text-sand-900 shadow-sm' : 'text-sand-600 hover:text-sand-900'}`}
+          >
+            Configurações
           </button>
         </div>
       </div>
@@ -508,17 +593,91 @@ export default function AdminDashboard() {
 
       {activeTab === 'gallery' && (
         <div className="space-y-6">
-          <h2 className="text-xl font-bold text-sand-800 flex items-center gap-2 border-b border-sand-200 pb-2">
-            <ImageIcon className="w-5 h-5 text-ocean-600" />
-            Gerenciar Galeria
-          </h2>
+          <div className="flex justify-between items-center border-b border-sand-200 pb-2">
+            <h2 className="text-xl font-bold text-sand-800 flex items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-ocean-600" />
+              Gerenciar Galeria
+            </h2>
+          </div>
+
+          <div className="bg-white p-6 rounded-xl border border-sand-200 shadow-sm mb-8">
+            <h3 className="text-lg font-bold text-sand-800 mb-4 flex items-center gap-2">
+              <PlusCircle className="w-5 h-5 text-ocean-600" />
+              Adicionar Nova Mídia
+            </h3>
+            <form onSubmit={handleAddGalleryImage} className="space-y-4">
+              <div className="grid md:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="newImageUrl" className="block text-sm font-medium text-sand-700 mb-1">URL da Mídia</label>
+                  <input
+                    id="newImageUrl"
+                    type="text"
+                    value={newGalleryImageUrl}
+                    onChange={(e) => setNewGalleryImageUrl(e.target.value)}
+                    className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                    placeholder="https://exemplo.com/midia.jpg"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="newAltText" className="block text-sm font-medium text-sand-700 mb-1">Texto Alternativo</label>
+                  <input
+                    id="newAltText"
+                    type="text"
+                    value={newGalleryAltText}
+                    onChange={(e) => setNewGalleryAltText(e.target.value)}
+                    className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                    placeholder="Descrição da mídia"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="newGalleryType" className="block text-sm font-medium text-sand-700 mb-1">Tipo de Mídia</label>
+                  <select
+                    id="newGalleryType"
+                    value={newGalleryType}
+                    onChange={(e) => setNewGalleryType(e.target.value as 'image' | 'video')}
+                    className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                  >
+                    <option value="image">Imagem</option>
+                    <option value="video">Vídeo</option>
+                  </select>
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={isSubmittingGallery}
+                className="bg-sand-900 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-sand-800 transition-colors disabled:opacity-70"
+              >
+                {isSubmittingGallery ? 'Adicionando...' : 'Adicionar Mídia'}
+              </button>
+            </form>
+          </div>
+
           <div className="grid md:grid-cols-2 gap-6">
             {gallery.map(image => (
               <div key={image.id} className="bg-white p-4 rounded-xl border border-sand-200 shadow-sm flex flex-col gap-4">
-                <img src={image.image_url} alt={image.alt_text} className="w-full h-48 object-cover rounded-lg" referrerPolicy="no-referrer" />
+                <div className="relative h-48 overflow-hidden rounded-lg bg-sand-100 flex items-center justify-center">
+                  {image.type === 'video' ? (
+                    <video 
+                      src={image.image_url} 
+                      className="max-w-full max-h-full object-contain" 
+                      style={{ transform: `rotate(${image.rotation || 0}deg)` }}
+                      controls
+                    />
+                  ) : (
+                    <img 
+                      src={image.image_url} 
+                      alt={image.alt_text} 
+                      className="max-w-full max-h-full object-contain" 
+                      style={{ transform: `rotate(${image.rotation || 0}deg)` }}
+                      referrerPolicy="no-referrer" 
+                    />
+                  )}
+                </div>
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-sm font-medium text-sand-700 mb-1">URL da Imagem</label>
+                    <label className="block text-sm font-medium text-sand-700 mb-1">URL da Mídia</label>
                     <input
                       type="text"
                       value={image.image_url}
@@ -535,18 +694,123 @@ export default function AdminDashboard() {
                       className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all text-sm"
                     />
                   </div>
-                  <div className="flex justify-end pt-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-sand-700 mb-1">Tipo</label>
+                      <select
+                        value={image.type || 'image'}
+                        onChange={(e) => setGallery(gallery.map(g => g.id === image.id ? { ...g, type: e.target.value as 'image' | 'video' } : g))}
+                        className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all text-sm"
+                      >
+                        <option value="image">Imagem</option>
+                        <option value="video">Vídeo</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-sand-700 mb-1 flex justify-between">
+                        <span>Rotação</span>
+                        <span className="text-sand-500">{image.rotation || 0}°</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="360"
+                        step="90"
+                        value={image.rotation || 0}
+                        onChange={(e) => setGallery(gallery.map(g => g.id === image.id ? { ...g, rotation: parseInt(e.target.value) } : g))}
+                        className="w-full accent-ocean-600 mt-2"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-between pt-2">
+                    <button
+                      onClick={() => handleDeleteGalleryImage(image.id)}
+                      className="flex items-center gap-2 text-red-600 hover:text-red-700 px-3 py-2 rounded-lg font-medium transition-colors text-sm"
+                    >
+                      <X className="w-4 h-4" />
+                      Excluir
+                    </button>
                     <button
                       onClick={() => handleUpdateGalleryImage(image)}
                       className="flex items-center gap-2 bg-ocean-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-ocean-700 transition-colors text-sm"
                     >
                       <Save className="w-4 h-4" />
-                      Salvar Imagem
+                      Salvar Mídia
                     </button>
                   </div>
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+      {activeTab === 'settings' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center border-b border-sand-200 pb-2">
+            <h2 className="text-xl font-bold text-sand-800 flex items-center gap-2">
+              <Save className="w-5 h-5 text-ocean-600" />
+              Configurações do Site
+            </h2>
+          </div>
+
+          <div className="bg-white p-6 rounded-xl border border-sand-200 shadow-sm mb-8">
+            <form onSubmit={handleUpdateSettings} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-sand-700 mb-1">Imagem do Banner Principal (Hero)</label>
+                <input
+                  type="text"
+                  value={settings.hero_image || ''}
+                  onChange={(e) => setSettings({ ...settings, hero_image: e.target.value })}
+                  className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                  placeholder="URL da imagem"
+                />
+                {settings.hero_image && (
+                  <div className="mt-2 h-32 overflow-hidden rounded-lg">
+                    <img src={settings.hero_image} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-sand-700 mb-1">Imagem Sobre 1 (Barco)</label>
+                <input
+                  type="text"
+                  value={settings.about_image_1 || ''}
+                  onChange={(e) => setSettings({ ...settings, about_image_1: e.target.value })}
+                  className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                  placeholder="URL da imagem"
+                />
+                {settings.about_image_1 && (
+                  <div className="mt-2 h-32 overflow-hidden rounded-lg">
+                    <img src={settings.about_image_1} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-sand-700 mb-1">Imagem Sobre 2 (Coqueiros)</label>
+                <input
+                  type="text"
+                  value={settings.about_image_2 || ''}
+                  onChange={(e) => setSettings({ ...settings, about_image_2: e.target.value })}
+                  className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                  placeholder="URL da imagem"
+                />
+                {settings.about_image_2 && (
+                  <div className="mt-2 h-32 overflow-hidden rounded-lg">
+                    <img src={settings.about_image_2} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                className="bg-ocean-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-ocean-700 transition-colors flex items-center gap-2"
+              >
+                <Save className="w-5 h-5" />
+                Salvar Configurações
+              </button>
+            </form>
           </div>
         </div>
       )}
