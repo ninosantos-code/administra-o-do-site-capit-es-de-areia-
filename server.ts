@@ -147,8 +147,22 @@ async function startServer() {
     }
   });
 
+  // Authentication Middleware
+  const authenticateToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (token == null) return res.status(401).json({ error: 'Token não fornecido' });
+
+    if (token === 'admin-token-123') {
+      next();
+    } else {
+      res.status(403).json({ error: 'Token inválido' });
+    }
+  };
+
   // Generate Image with AI
-  app.post('/api/generate-image', async (req, res) => {
+  app.post('/api/generate-image', authenticateToken, async (req, res) => {
     try {
       const { prompt } = req.body;
       if (!prompt) {
@@ -205,7 +219,7 @@ async function startServer() {
   });
 
   // Get analytics
-  app.get('/api/analytics', (req, res) => {
+  app.get('/api/analytics', authenticateToken, (req, res) => {
     const totalViewsStmt = db.prepare('SELECT COUNT(*) as count FROM page_views');
     const totalViews = totalViewsStmt.get() as { count: number };
 
@@ -230,7 +244,7 @@ async function startServer() {
   });
 
   // Update a tour
-  app.put('/api/tours/:id', (req, res) => {
+  app.put('/api/tours/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { title, description, duration, price, image, icon } = req.body;
     
@@ -256,7 +270,7 @@ async function startServer() {
   });
 
   // Update a gallery image
-  app.put('/api/gallery/:id', (req, res) => {
+  app.put('/api/gallery/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { image_url, alt_text, rotation, type } = req.body;
     
@@ -275,7 +289,7 @@ async function startServer() {
   });
 
   // Add a new gallery image
-  app.post('/api/gallery', (req, res) => {
+  app.post('/api/gallery', authenticateToken, (req, res) => {
     const { image_url, alt_text, type } = req.body;
     
     if (!image_url || !alt_text) {
@@ -293,7 +307,7 @@ async function startServer() {
   });
 
   // Delete a gallery image
-  app.delete('/api/gallery/:id', (req, res) => {
+  app.delete('/api/gallery/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     
     const stmt = db.prepare('DELETE FROM gallery WHERE id = ?');
@@ -306,9 +320,19 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  // Get all comments (Admin view)
+  // Get all comments
   app.get('/api/comments', (req, res) => {
     const status = req.query.status;
+    
+    // Only allow public access to approved comments
+    if (status !== 'approved') {
+      const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
+      if (token !== 'admin-token-123') {
+        return res.status(403).json({ error: 'Unauthorized to view non-approved comments' });
+      }
+    }
+
     let comments;
     if (status) {
       const stmt = db.prepare('SELECT * FROM comments WHERE status = ? ORDER BY created_at DESC');
@@ -332,7 +356,7 @@ async function startServer() {
   });
 
   // Update comment status (Admin view)
-  app.put('/api/comments/:id/status', (req, res) => {
+  app.put('/api/comments/:id/status', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
     if (!['pending', 'approved', 'rejected'].includes(status)) {
@@ -354,7 +378,7 @@ async function startServer() {
   });
 
   // Post a new update (Admin view)
-  app.post('/api/updates', (req, res) => {
+  app.post('/api/updates', authenticateToken, (req, res) => {
     const { title, content } = req.body;
     if (!title || !content) {
       return res.status(400).json({ error: 'Title and content are required' });
@@ -376,18 +400,18 @@ async function startServer() {
   });
 
   // Update site settings
-  app.put('/api/settings', (req, res) => {
+  app.put('/api/settings', authenticateToken, (req, res) => {
     const settings = req.body;
     
     if (!settings || typeof settings !== 'object') {
       return res.status(400).json({ error: 'Invalid settings object' });
     }
 
-    const stmt = db.prepare('UPDATE site_settings SET value = ? WHERE key = ?');
+    const stmt = db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)');
     
     const updateMany = db.transaction((settingsObj: Record<string, string>) => {
       for (const [key, value] of Object.entries(settingsObj)) {
-        stmt.run(value, key);
+        stmt.run(key, value);
       }
     });
 

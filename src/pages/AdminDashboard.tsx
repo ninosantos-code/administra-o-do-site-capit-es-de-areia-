@@ -242,9 +242,23 @@ export default function AdminDashboard() {
     );
   }
 
+  const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('adminToken');
+    const headers = {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`
+    };
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401 || res.status === 403) {
+      handleLogout();
+      throw new Error('Unauthorized');
+    }
+    return res;
+  };
+
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/settings');
+      const res = await fetchWithAuth('/api/settings');
       const data = await res.json();
       setSettings(data);
     } catch (error) {
@@ -254,7 +268,7 @@ export default function AdminDashboard() {
 
   const fetchTours = async () => {
     try {
-      const res = await fetch('/api/tours');
+      const res = await fetchWithAuth('/api/tours');
       const data = await res.json();
       setTours(data);
     } catch (error) {
@@ -264,7 +278,7 @@ export default function AdminDashboard() {
 
   const fetchGallery = async () => {
     try {
-      const res = await fetch('/api/gallery');
+      const res = await fetchWithAuth('/api/gallery');
       const data = await res.json();
       setGallery(data);
     } catch (error) {
@@ -274,7 +288,7 @@ export default function AdminDashboard() {
 
   const handleUpdateTour = async (tour: Tour) => {
     try {
-      const res = await fetch(`/api/tours/${tour.id}`, {
+      const res = await fetchWithAuth(`/api/tours/${tour.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(tour),
@@ -291,7 +305,7 @@ export default function AdminDashboard() {
 
   const handleUpdateGalleryImage = async (image: GalleryImage) => {
     try {
-      const res = await fetch(`/api/gallery/${image.id}`, {
+      const res = await fetchWithAuth(`/api/gallery/${image.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(image),
@@ -312,7 +326,7 @@ export default function AdminDashboard() {
 
     setIsSubmittingGallery(true);
     try {
-      const res = await fetch('/api/gallery', {
+      const res = await fetchWithAuth('/api/gallery', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image_url: newGalleryImageUrl, alt_text: newGalleryAltText, type: newGalleryType }),
@@ -337,7 +351,7 @@ export default function AdminDashboard() {
     if (!window.confirm('Tem certeza que deseja excluir esta mídia?')) return;
     
     try {
-      const res = await fetch(`/api/gallery/${id}`, {
+      const res = await fetchWithAuth(`/api/gallery/${id}`, {
         method: 'DELETE',
       });
       if (res.ok) {
@@ -353,7 +367,7 @@ export default function AdminDashboard() {
   const handleUpdateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/settings', {
+      const res = await fetchWithAuth('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
@@ -374,7 +388,7 @@ export default function AdminDashboard() {
     }
     setIsGeneratingImage(true);
     try {
-      const res = await fetch('/api/generate-image', {
+      const res = await fetchWithAuth('/api/generate-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
@@ -395,7 +409,7 @@ export default function AdminDashboard() {
 
   const fetchAnalytics = async () => {
     try {
-      const res = await fetch('/api/analytics');
+      const res = await fetchWithAuth('/api/analytics');
       const data = await res.json();
       setAnalytics(data);
     } catch (error) {
@@ -405,7 +419,7 @@ export default function AdminDashboard() {
 
   const fetchComments = async () => {
     try {
-      const res = await fetch('/api/comments');
+      const res = await fetchWithAuth('/api/comments');
       const data = await res.json();
       setComments(data);
     } catch (error) {
@@ -415,7 +429,7 @@ export default function AdminDashboard() {
 
   const fetchUpdates = async () => {
     try {
-      const res = await fetch('/api/updates');
+      const res = await fetchWithAuth('/api/updates');
       const data = await res.json();
       setUpdates(data);
     } catch (error) {
@@ -425,7 +439,7 @@ export default function AdminDashboard() {
 
   const handleUpdateCommentStatus = async (id: number, status: 'approved' | 'rejected') => {
     try {
-      const res = await fetch(`/api/comments/${id}/status`, {
+      const res = await fetchWithAuth(`/api/comments/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -444,7 +458,7 @@ export default function AdminDashboard() {
 
     setIsSubmittingUpdate(true);
     try {
-      const res = await fetch('/api/updates', {
+      const res = await fetchWithAuth('/api/updates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: newUpdateTitle, content: newUpdateContent }),
