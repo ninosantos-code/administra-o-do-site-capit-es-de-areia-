@@ -46,10 +46,6 @@ export default function AdminDashboard() {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [isRecovering, setIsRecovering] = useState(false);
-  const [recoveryCode, setRecoveryCode] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [recoveryMessage, setRecoveryMessage] = useState('');
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [updates, setUpdates] = useState<Update[]>([]);
@@ -100,7 +96,7 @@ export default function AdminDashboard() {
         localStorage.setItem('adminToken', data.token);
         setIsAuthenticated(true);
       } else {
-        setLoginError(data.message || 'Senha incorreta');
+        setLoginError(data.message || 'Código incorreto');
       }
     } catch (error) {
       setLoginError('Erro ao fazer login');
@@ -114,129 +110,36 @@ export default function AdminDashboard() {
     setIsAuthenticated(false);
   };
 
-  const handleRecover = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoggingIn(true);
-    setRecoveryMessage('');
-    setLoginError('');
-    try {
-      const res = await fetch('/api/recover-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: recoveryCode, newPassword }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        if (newPassword) {
-          setRecoveryMessage('Senha atualizada com sucesso! Você pode fazer login agora.');
-          setTimeout(() => {
-            setIsRecovering(false);
-            setRecoveryMessage('');
-            setRecoveryCode('');
-            setNewPassword('');
-          }, 3000);
-        } else {
-          setRecoveryMessage(`Sua senha atual é: ${data.password}`);
-        }
-      } else {
-        setLoginError(data.message || 'Código inválido');
-      }
-    } catch (error) {
-      setLoginError('Erro ao recuperar senha');
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-sand-50 flex items-center justify-center p-6">
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full">
           <h1 className="text-3xl font-serif text-sand-900 mb-6 text-center">
-            {isRecovering ? 'Recuperar Senha' : 'Acesso Restrito'}
+            Acesso Restrito
           </h1>
           
-          {isRecovering ? (
-            <form onSubmit={handleRecover} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-sand-700 mb-1">Código de Recuperação</label>
-                <input
-                  type="text"
-                  value={recoveryCode}
-                  onChange={(e) => setRecoveryCode(e.target.value)}
-                  className="w-full px-4 py-3 bg-sand-50 border border-sand-300 rounded-xl focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
-                  placeholder="Digite o código"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-sand-700 mb-1">Nova Senha (Opcional)</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-sand-50 border border-sand-300 rounded-xl focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
-                  placeholder="Deixe em branco para ver a senha atual"
-                />
-              </div>
-              {loginError && <p className="text-red-500 text-sm">{loginError}</p>}
-              {recoveryMessage && <p className="text-green-600 text-sm font-medium">{recoveryMessage}</p>}
-              <button
-                type="submit"
-                disabled={isLoggingIn}
-                className="w-full py-3 bg-ocean-600 text-white rounded-xl font-medium hover:bg-ocean-700 transition-colors disabled:opacity-70"
-              >
-                {isLoggingIn ? 'Processando...' : 'Recuperar'}
-              </button>
-              <div className="text-center mt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsRecovering(false);
-                    setLoginError('');
-                    setRecoveryMessage('');
-                  }}
-                  className="text-sm text-ocean-600 hover:text-ocean-800 transition-colors"
-                >
-                  Voltar para o Login
-                </button>
-              </div>
-            </form>
-          ) : (
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-sand-700 mb-1">Senha de Acesso</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-sand-50 border border-sand-300 rounded-xl focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
-                  placeholder="Digite a senha"
-                  required
-                />
-              </div>
-              {loginError && <p className="text-red-500 text-sm">{loginError}</p>}
-              <button
-                type="submit"
-                disabled={isLoggingIn}
-                className="w-full py-3 bg-ocean-600 text-white rounded-xl font-medium hover:bg-ocean-700 transition-colors disabled:opacity-70"
-              >
-                {isLoggingIn ? 'Entrando...' : 'Entrar'}
-              </button>
-              <div className="text-center mt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsRecovering(true);
-                    setLoginError('');
-                  }}
-                  className="text-sm text-sand-500 hover:text-sand-700 transition-colors"
-                >
-                  Esqueceu a senha?
-                </button>
-              </div>
-            </form>
-          )}
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-sand-700 mb-1">Código de Acesso (6 dígitos)</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 bg-sand-50 border border-sand-300 rounded-xl focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all text-center tracking-widest text-lg"
+                placeholder="000000"
+                maxLength={6}
+                required
+              />
+            </div>
+            {loginError && <p className="text-red-500 text-sm text-center">{loginError}</p>}
+            <button
+              type="submit"
+              disabled={isLoggingIn || password.length !== 6}
+              className="w-full py-3 bg-ocean-600 text-white rounded-xl font-medium hover:bg-ocean-700 transition-colors disabled:opacity-70"
+            >
+              {isLoggingIn ? 'Entrando...' : 'Entrar'}
+            </button>
+          </form>
         </div>
       </div>
     );

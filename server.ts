@@ -118,32 +118,12 @@ async function startServer() {
   // Login
   app.post('/api/login', (req, res) => {
     const { password } = req.body;
-    const setting = db.prepare('SELECT value FROM site_settings WHERE key = ?').get('admin_password') as { value: string } | undefined;
-    const adminPassword = setting ? setting.value : 'Lagosta@7';
     
-    if (password === adminPassword) {
+    // Fixed 6-digit code
+    if (password === '085085') {
       res.json({ success: true, token: 'admin-token-123' });
     } else {
-      res.status(401).json({ success: false, message: 'Senha incorreta' });
-    }
-  });
-
-  // Password Recovery
-  app.post('/api/recover-password', (req, res) => {
-    const { code, newPassword } = req.body;
-    const RECOVERY_CODE = '726597@@Ng';
-    
-    if (code === RECOVERY_CODE) {
-      if (newPassword) {
-        db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)').run('admin_password', newPassword);
-        res.json({ success: true, message: 'Senha atualizada com sucesso' });
-      } else {
-        const setting = db.prepare('SELECT value FROM site_settings WHERE key = ?').get('admin_password') as { value: string } | undefined;
-        const currentPassword = setting ? setting.value : 'Lagosta@7';
-        res.json({ success: true, password: currentPassword });
-      }
-    } else {
-      res.status(401).json({ success: false, message: 'Código de recuperação inválido' });
+      res.status(401).json({ success: false, message: 'Código incorreto' });
     }
   });
 
