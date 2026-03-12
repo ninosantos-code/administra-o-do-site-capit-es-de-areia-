@@ -42,10 +42,7 @@ interface GalleryImage {
 }
 
 export default function AdminDashboard() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [updates, setUpdates] = useState<Update[]>([]);
@@ -64,13 +61,6 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'comments' | 'updates' | 'tours' | 'gallery' | 'settings'>('dashboard');
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
-    if (token) {
-      setIsAuthenticated(true);
-    }
-  }, []);
-
-  useEffect(() => {
     if (isAuthenticated) {
       fetchComments();
       fetchUpdates();
@@ -81,69 +71,10 @@ export default function AdminDashboard() {
     }
   }, [isAuthenticated]);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoggingIn(true);
-    setLoginError('');
-    try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        localStorage.setItem('adminToken', data.token);
-        setIsAuthenticated(true);
-      } else {
-        setLoginError(data.message || 'Código incorreto');
-      }
-    } catch (error) {
-      setLoginError('Erro ao fazer login');
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
   const handleLogout = () => {
-    localStorage.removeItem('adminToken');
-    setIsAuthenticated(false);
+    // Logout disabled since auth is bypassed
+    window.location.href = '/';
   };
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-sand-50 flex items-center justify-center p-6">
-        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full">
-          <h1 className="text-3xl font-serif text-sand-900 mb-6 text-center">
-            Acesso Restrito
-          </h1>
-          
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-sand-700 mb-1">Código de Acesso (6 dígitos)</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-sand-50 border border-sand-300 rounded-xl focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all text-center tracking-widest text-lg"
-                placeholder="000000"
-                maxLength={6}
-                required
-              />
-            </div>
-            {loginError && <p className="text-red-500 text-sm text-center">{loginError}</p>}
-            <button
-              type="submit"
-              disabled={isLoggingIn || password.length !== 6}
-              className="w-full py-3 bg-ocean-600 text-white rounded-xl font-medium hover:bg-ocean-700 transition-colors disabled:opacity-70"
-            >
-              {isLoggingIn ? 'Entrando...' : 'Entrar'}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
 
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('adminToken');
@@ -1013,6 +944,67 @@ export default function AdminDashboard() {
                     <img src={settings.about_image_2} alt="Preview" className="w-full h-full object-cover" />
                   </div>
                 )}
+              </div>
+
+              <div className="border-t border-sand-200 pt-6 mt-6">
+                <h3 className="text-lg font-bold text-sand-800 mb-4">Contatos do Rodapé</h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-sand-700 mb-1">WhatsApp (Texto)</label>
+                    <input
+                      type="text"
+                      value={settings.contact_whatsapp || ''}
+                      onChange={(e) => setSettings({ ...settings, contact_whatsapp: e.target.value })}
+                      className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                      placeholder="Ex: (75) 99999-9999"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-sand-700 mb-1">WhatsApp (Link/Número)</label>
+                    <input
+                      type="text"
+                      value={settings.contact_whatsapp_link || ''}
+                      onChange={(e) => setSettings({ ...settings, contact_whatsapp_link: e.target.value })}
+                      className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                      placeholder="Ex: 5575999999999"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-sand-700 mb-1">Instagram (Texto)</label>
+                    <input
+                      type="text"
+                      value={settings.contact_instagram || ''}
+                      onChange={(e) => setSettings({ ...settings, contact_instagram: e.target.value })}
+                      className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                      placeholder="Ex: @capitaesdaareia"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-sand-700 mb-1">Instagram (Link)</label>
+                    <input
+                      type="text"
+                      value={settings.contact_instagram_link || ''}
+                      onChange={(e) => setSettings({ ...settings, contact_instagram_link: e.target.value })}
+                      className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                      placeholder="Ex: https://instagram.com/capitaesdaareia"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-sand-700 mb-1">Endereço (HTML permitido)</label>
+                    <textarea
+                      value={settings.contact_address || ''}
+                      onChange={(e) => setSettings({ ...settings, contact_address: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all resize-none"
+                      placeholder="Praia de Moreré, s/n<br/>Ilha de Boipeba, Cairu - BA"
+                    />
+                  </div>
+                </div>
               </div>
 
               <button

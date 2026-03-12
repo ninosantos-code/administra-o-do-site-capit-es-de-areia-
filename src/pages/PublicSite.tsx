@@ -838,20 +838,16 @@ ${observacoes ? `\n*Observações:* ${observacoes}` : ''}
           
           <div className="flex flex-col gap-2 md:items-center">
             <h4 className="text-white font-medium uppercase tracking-widest text-sm mb-2">Contato</h4>
-            <a href="https://wa.me/5575999999999" className="hover:text-white transition-colors font-light flex items-center gap-2">
-              <MessageCircle className="w-4 h-4" /> (75) 99999-9999
+            <a href={`https://wa.me/${settings.contact_whatsapp_link || '5575999999999'}`} className="hover:text-white transition-colors font-light flex items-center gap-2">
+              <MessageCircle className="w-4 h-4" /> {settings.contact_whatsapp || '(75) 99999-9999'}
             </a>
-            <a href="https://instagram.com" className="hover:text-white transition-colors font-light flex items-center gap-2">
-              <Instagram className="w-4 h-4" /> @capitaesdaareia
+            <a href={settings.contact_instagram_link || 'https://instagram.com'} className="hover:text-white transition-colors font-light flex items-center gap-2">
+              <Instagram className="w-4 h-4" /> {settings.contact_instagram || '@capitaesdaareia'}
             </a>
           </div>
           
           <div className="md:text-right">
-            <p className="font-light text-sm">
-              Praia de Moreré, s/n<br />
-              Ilha de Boipeba, Cairu - BA<br />
-              CEP 41234-000
-            </p>
+            <p className="font-light text-sm" dangerouslySetInnerHTML={{ __html: settings.contact_address || 'Praia de Moreré, s/n<br />Ilha de Boipeba, Cairu - BA<br />CEP 41234-000' }} />
           </div>
         </div>
         <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-sand-800 text-center text-sm font-light">
