@@ -115,6 +115,64 @@ async function startServer() {
 
   // --- API Routes ---
 
+  // Login
+  app.post('/api/login', (req, res) => {
+    const { password } = req.body;
+    const adminPassword = process.env.ADMIN_PASSWORD || 'capitaes2026';
+    if (password === adminPassword) {
+      res.json({ success: true, token: 'admin-token-123' });
+    } else {
+      res.status(401).json({ success: false, message: 'Senha incorreta' });
+    }
+  });
+
+  // Generate Image with AI
+  app.post('/api/generate-image', async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      if (!prompt) {
+        return res.status(400).json({ error: 'Prompt is required' });
+      }
+
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: {
+          parts: [
+            {
+              text: prompt,
+            },
+          ],
+        },
+        config: {
+          imageConfig: {
+            aspectRatio: "16:9",
+            imageSize: "1K"
+          }
+        },
+      });
+
+      let base64Image = null;
+      for (const part of response.candidates?.[0]?.content?.parts || []) {
+        if (part.inlineData) {
+          base64Image = part.inlineData.data;
+          break;
+        }
+      }
+
+      if (base64Image) {
+        res.json({ success: true, imageUrl: `data:image/png;base64,${base64Image}` });
+      } else {
+        res.status(500).json({ error: 'Failed to generate image' });
+      }
+    } catch (error) {
+      console.error('Error generating image:', error);
+      res.status(500).json({ error: 'Failed to generate image' });
+    }
+  });
+
   // Track page view
   app.post('/api/track', (req, res) => {
     const { path } = req.body;

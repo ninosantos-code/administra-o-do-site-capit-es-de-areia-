@@ -42,6 +42,11 @@ interface GalleryImage {
 }
 
 export default function AdminDashboard() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
   const [comments, setComments] = useState<Comment[]>([]);
   const [updates, setUpdates] = useState<Update[]>([]);
   const [tours, setTours] = useState<Tour[]>([]);
@@ -55,16 +60,86 @@ export default function AdminDashboard() {
   const [newGalleryAltText, setNewGalleryAltText] = useState('');
   const [newGalleryType, setNewGalleryType] = useState<'image' | 'video'>('image');
   const [isSubmittingGallery, setIsSubmittingGallery] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'comments' | 'updates' | 'tours' | 'gallery' | 'settings'>('dashboard');
 
   useEffect(() => {
-    fetchComments();
-    fetchUpdates();
-    fetchAnalytics();
-    fetchTours();
-    fetchGallery();
-    fetchSettings();
+    const token = localStorage.getItem('adminToken');
+    if (token) {
+      setIsAuthenticated(true);
+    }
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchComments();
+      fetchUpdates();
+      fetchAnalytics();
+      fetchTours();
+      fetchGallery();
+      fetchSettings();
+    }
+  }, [isAuthenticated]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+    setLoginError('');
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem('adminToken', data.token);
+        setIsAuthenticated(true);
+      } else {
+        setLoginError(data.message || 'Senha incorreta');
+      }
+    } catch (error) {
+      setLoginError('Erro ao fazer login');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    setIsAuthenticated(false);
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-sand-50 flex items-center justify-center p-6">
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full">
+          <h1 className="text-3xl font-serif text-sand-900 mb-6 text-center">Acesso Restrito</h1>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-sand-700 mb-1">Senha de Acesso</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 bg-sand-50 border border-sand-300 rounded-xl focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                placeholder="Digite a senha"
+                required
+              />
+            </div>
+            {loginError && <p className="text-red-500 text-sm">{loginError}</p>}
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full py-3 bg-ocean-600 text-white rounded-xl font-medium hover:bg-ocean-700 transition-colors disabled:opacity-70"
+            >
+              {isLoggingIn ? 'Entrando...' : 'Entrar'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   const fetchSettings = async () => {
     try {
@@ -191,6 +266,32 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleGenerateImage = async (prompt: string, callback: (url: string) => void) => {
+    if (!prompt) {
+      alert('Por favor, insira uma descrição para a imagem.');
+      return;
+    }
+    setIsGeneratingImage(true);
+    try {
+      const res = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        callback(data.imageUrl);
+      } else {
+        alert('Erro ao gerar imagem: ' + data.error);
+      }
+    } catch (error) {
+      console.error('Failed to generate image:', error);
+      alert('Erro ao gerar imagem.');
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
+
   const fetchAnalytics = async () => {
     try {
       const res = await fetch('/api/analytics');
@@ -271,8 +372,15 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-serif font-bold text-sand-900">Painel de Administração</h1>
           <p className="text-sand-500 mt-1">Gerencie atualizações e modere comentários do site.</p>
         </div>
+        <button
+          onClick={handleLogout}
+          className="text-sm font-medium text-red-600 hover:text-red-800 transition-colors"
+        >
+          Sair
+        </button>
+      </div>
         
-        <div className="flex bg-sand-200 p-1 rounded-lg flex-wrap gap-1">
+      <div className="mb-8 flex bg-sand-200 p-1 rounded-lg flex-wrap gap-1">
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'dashboard' ? 'bg-white text-sand-900 shadow-sm' : 'text-sand-600 hover:text-sand-900'}`}
@@ -315,7 +423,6 @@ export default function AdminDashboard() {
             Configurações
           </button>
         </div>
-      </div>
 
       {activeTab === 'dashboard' && (
         <div className="space-y-8">
@@ -568,12 +675,29 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-sand-700 mb-1">URL da Imagem</label>
-                    <input
-                      type="text"
-                      value={tour.image}
-                      onChange={(e) => setTours(tours.map(t => t.id === tour.id ? { ...t, image: e.target.value } : t))}
-                      className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={tour.image}
+                        onChange={(e) => setTours(tours.map(t => t.id === tour.id ? { ...t, image: e.target.value } : t))}
+                        className="flex-1 px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const prompt = window.prompt("Descreva a imagem que você quer gerar com IA para este passeio:");
+                          if (prompt) {
+                            handleGenerateImage(prompt, (url) => setTours(tours.map(t => t.id === tour.id ? { ...t, image: url } : t)));
+                          }
+                        }}
+                        disabled={isGeneratingImage}
+                        className="bg-ocean-100 text-ocean-700 px-3 py-2 rounded-lg font-medium hover:bg-ocean-200 transition-colors disabled:opacity-50 flex items-center gap-1"
+                        title="Gerar com IA"
+                      >
+                        <ImageIcon className="w-4 h-4" />
+                        IA
+                      </button>
+                    </div>
                   </div>
                   <div className="flex justify-end pt-2">
                     <button
@@ -609,15 +733,34 @@ export default function AdminDashboard() {
               <div className="grid md:grid-cols-3 gap-4">
                 <div>
                   <label htmlFor="newImageUrl" className="block text-sm font-medium text-sand-700 mb-1">URL da Mídia</label>
-                  <input
-                    id="newImageUrl"
-                    type="text"
-                    value={newGalleryImageUrl}
-                    onChange={(e) => setNewGalleryImageUrl(e.target.value)}
-                    className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
-                    placeholder="https://exemplo.com/midia.jpg"
-                    required
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      id="newImageUrl"
+                      type="text"
+                      value={newGalleryImageUrl}
+                      onChange={(e) => setNewGalleryImageUrl(e.target.value)}
+                      className="flex-1 px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                      placeholder="https://exemplo.com/midia.jpg"
+                      required
+                    />
+                    {newGalleryType === 'image' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const prompt = window.prompt("Descreva a imagem que você quer gerar com IA:");
+                          if (prompt) {
+                            handleGenerateImage(prompt, (url) => setNewGalleryImageUrl(url));
+                          }
+                        }}
+                        disabled={isGeneratingImage}
+                        className="bg-ocean-100 text-ocean-700 px-3 py-2 rounded-lg font-medium hover:bg-ocean-200 transition-colors disabled:opacity-50 flex items-center gap-1"
+                        title="Gerar com IA"
+                      >
+                        <ImageIcon className="w-4 h-4" />
+                        IA
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label htmlFor="newAltText" className="block text-sm font-medium text-sand-700 mb-1">Texto Alternativo</label>
@@ -757,13 +900,30 @@ export default function AdminDashboard() {
             <form onSubmit={handleUpdateSettings} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-sand-700 mb-1">Imagem do Banner Principal (Hero)</label>
-                <input
-                  type="text"
-                  value={settings.hero_image || ''}
-                  onChange={(e) => setSettings({ ...settings, hero_image: e.target.value })}
-                  className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
-                  placeholder="URL da imagem"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={settings.hero_image || ''}
+                    onChange={(e) => setSettings({ ...settings, hero_image: e.target.value })}
+                    className="flex-1 px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                    placeholder="URL da imagem"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const prompt = window.prompt("Descreva a imagem que você quer gerar com IA para o banner:");
+                      if (prompt) {
+                        handleGenerateImage(prompt, (url) => setSettings({ ...settings, hero_image: url }));
+                      }
+                    }}
+                    disabled={isGeneratingImage}
+                    className="bg-ocean-100 text-ocean-700 px-3 py-2 rounded-lg font-medium hover:bg-ocean-200 transition-colors disabled:opacity-50 flex items-center gap-1"
+                    title="Gerar com IA"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    IA
+                  </button>
+                </div>
                 {settings.hero_image && (
                   <div className="mt-2 h-32 overflow-hidden rounded-lg">
                     <img src={settings.hero_image} alt="Preview" className="w-full h-full object-cover" />
@@ -773,13 +933,30 @@ export default function AdminDashboard() {
 
               <div>
                 <label className="block text-sm font-medium text-sand-700 mb-1">Imagem Sobre 1 (Barco)</label>
-                <input
-                  type="text"
-                  value={settings.about_image_1 || ''}
-                  onChange={(e) => setSettings({ ...settings, about_image_1: e.target.value })}
-                  className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
-                  placeholder="URL da imagem"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={settings.about_image_1 || ''}
+                    onChange={(e) => setSettings({ ...settings, about_image_1: e.target.value })}
+                    className="flex-1 px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                    placeholder="URL da imagem"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const prompt = window.prompt("Descreva a imagem que você quer gerar com IA:");
+                      if (prompt) {
+                        handleGenerateImage(prompt, (url) => setSettings({ ...settings, about_image_1: url }));
+                      }
+                    }}
+                    disabled={isGeneratingImage}
+                    className="bg-ocean-100 text-ocean-700 px-3 py-2 rounded-lg font-medium hover:bg-ocean-200 transition-colors disabled:opacity-50 flex items-center gap-1"
+                    title="Gerar com IA"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    IA
+                  </button>
+                </div>
                 {settings.about_image_1 && (
                   <div className="mt-2 h-32 overflow-hidden rounded-lg">
                     <img src={settings.about_image_1} alt="Preview" className="w-full h-full object-cover" />
@@ -789,13 +966,30 @@ export default function AdminDashboard() {
 
               <div>
                 <label className="block text-sm font-medium text-sand-700 mb-1">Imagem Sobre 2 (Coqueiros)</label>
-                <input
-                  type="text"
-                  value={settings.about_image_2 || ''}
-                  onChange={(e) => setSettings({ ...settings, about_image_2: e.target.value })}
-                  className="w-full px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
-                  placeholder="URL da imagem"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={settings.about_image_2 || ''}
+                    onChange={(e) => setSettings({ ...settings, about_image_2: e.target.value })}
+                    className="flex-1 px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                    placeholder="URL da imagem"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const prompt = window.prompt("Descreva a imagem que você quer gerar com IA:");
+                      if (prompt) {
+                        handleGenerateImage(prompt, (url) => setSettings({ ...settings, about_image_2: url }));
+                      }
+                    }}
+                    disabled={isGeneratingImage}
+                    className="bg-ocean-100 text-ocean-700 px-3 py-2 rounded-lg font-medium hover:bg-ocean-200 transition-colors disabled:opacity-50 flex items-center gap-1"
+                    title="Gerar com IA"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    IA
+                  </button>
+                </div>
                 {settings.about_image_2 && (
                   <div className="mt-2 h-32 overflow-hidden rounded-lg">
                     <img src={settings.about_image_2} alt="Preview" className="w-full h-full object-cover" />
