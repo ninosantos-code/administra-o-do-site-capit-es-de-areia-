@@ -483,7 +483,13 @@ ${observacoes ? `\n*Observações:* ${observacoes}` : ''}
 
       {/* Updates Section */}
       <section id="noticias" className="py-24 px-6 md:px-12 bg-sand-100">
-        <div className="max-w-7xl mx-auto">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.8 }}
+          className="max-w-7xl mx-auto"
+        >
           <div className="text-center max-w-3xl mx-auto mb-16">
             <span className="text-ocean-600 uppercase tracking-widest text-sm font-semibold mb-4 block">Notícias do Trapiche</span>
             <h2 className="text-4xl md:text-5xl font-serif text-sand-900 mb-6">
@@ -511,12 +517,18 @@ ${observacoes ? `\n*Observações:* ${observacoes}` : ''}
               ))}
             </div>
           )}
-        </div>
+        </motion.div>
       </section>
 
       {/* Tours Section */}
       <section id="passeios" className="py-24 px-6 md:px-12 bg-white">
-        <div className="max-w-7xl mx-auto">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.8 }}
+          className="max-w-7xl mx-auto"
+        >
           <div className="text-center max-w-3xl mx-auto mb-16">
             <span className="text-ocean-600 uppercase tracking-widest text-sm font-semibold mb-4 block">Nossos Roteiros</span>
             <h2 className="text-4xl md:text-5xl font-serif text-sand-900 mb-6">
@@ -601,12 +613,18 @@ ${observacoes ? `\n*Observações:* ${observacoes}` : ''}
               ))}
             </div>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* Gallery Section */}
       <section id="galeria" className="py-24 px-6 md:px-12 bg-sand-900 text-sand-50">
-        <div className="max-w-7xl mx-auto">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.8 }}
+          className="max-w-7xl mx-auto"
+        >
           <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
             <div className="max-w-2xl">
               <span className="text-ocean-400 uppercase tracking-widest text-sm font-semibold mb-4 block">Galeria</span>
@@ -651,12 +669,18 @@ ${observacoes ? `\n*Observações:* ${observacoes}` : ''}
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* Testimonials */}
       <section id="depoimentos" className="py-24 px-6 md:px-12 bg-sand-100">
-        <div className="max-w-7xl mx-auto">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.8 }}
+          className="max-w-7xl mx-auto"
+        >
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-serif text-sand-900 mb-4">
               O que dizem <span className="italic">nossos clientes</span>
@@ -771,12 +795,18 @@ ${observacoes ? `\n*Observações:* ${observacoes}` : ''}
               </form>
             )}
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* CTA Section */}
       <section className="py-24 px-6 md:px-12 bg-ocean-600 text-white text-center">
-        <div className="max-w-3xl mx-auto">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.8 }}
+          className="max-w-3xl mx-auto"
+        >
           <h2 className="text-4xl md:text-6xl font-serif mb-8">Pronto para viver essa experiência?</h2>
           <p className="text-xl text-ocean-100 font-light mb-10">
             Entre em contato agora mesmo e garanta sua vaga nos melhores passeios de Moreré.
@@ -788,7 +818,7 @@ ${observacoes ? `\n*Observações:* ${observacoes}` : ''}
             <MessageCircle className="w-6 h-6" />
             Falar com a equipe
           </button>
-        </div>
+        </motion.div>
       </section>
 
       {/* Footer */}
